@@ -1,0 +1,8 @@
+<launch>
+    <include file="$(find control)/launch/receptionist_tb_nav_with_amcl.launch"/>
+    <include file="$(find freenect_launch)/launch/freenect.launch"/>
+    <include file="$(find control)/launch/arm_receptionist.launch"/>
+    <include file="$(find control)/launch/speech_receptionist.launch"/>
+    <include file="$(find control)/launch/receptionist_image.launch"/>
+    <node name="control_task" pkg="control" type="reception_control.py" output="screen"/>
+</launch>

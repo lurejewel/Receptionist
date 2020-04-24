@@ -1,0 +1,6 @@
+<launch>
+    <!--Start the robot arm-->
+    <include file="$(find receptionist_arm)/launch/arm.launch"/>
+    <!--Start arm control node-->
+    <node name="arm" pkg="receptionist_arm" type="arm_receptionist.py" output="screen"/>
+</launch>

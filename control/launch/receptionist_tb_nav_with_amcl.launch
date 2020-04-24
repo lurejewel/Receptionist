@@ -1,0 +1,74 @@
+<launch>
+
+  <param name="use_sim_time" value="false" />
+  
+<!--
+1. 加载地图/home/lurejewel/catkin_ws/src/receptionist_navigation/waypoints.txt
+2. 开启导航节点
+3. 开启AMCL辅助定位
+4. 开启导航测试 这里面需要改
+-->
+
+    <include file="$(find turtlebot_bringup)/launch/minimal.launch" />
+
+  <!--设置激光-->   
+  <!-- laser driver -->
+  <!--<include file="$(find turtlebot_navigation)/laser/driver/hokuyo_laser.launch" />-->
+
+  <include file="$(find turtlebot_bringup)/launch/3dsensor.launch">
+    <arg name="rgb_processing" value="false" />
+    <arg name="depth_registration" value="false" />
+    <arg name="depth_processing" value="false" />
+    <arg name="scan_topic" value="/scan" />
+    <arg name="3d_sensor" value="kinect"/>
+  </include>
+
+  <!-- 定义launch内部变量类似define -->
+  <arg name="map" default="maps.yaml" />
+<!--前面已将添加好路径，只需直接写入地图的yaml文件名/home/lurejewel/catkin_ws/src/receptionist_navigation/maps/maps.yaml-->
+
+  <!--创建地图;修改了路径 -->
+  <node name="map_server" pkg="map_server" type="map_server" args="$(find receptionist_navigation)/$(arg map)"/>
+
+  <!-- 开启导航节点 -->
+  <node pkg="move_base" type="move_base" respawn="false" name="move_base" output="screen" clear_params="true">
+    <!--<remap from="/cmd_vel" to="/cmd_vel_mux/input/navi"/>-->
+    <remap from="/cmd_vel" to="/cmd_vel_mux/input/navi"/>
+
+    <param name="controller_frequency" value="1.0"/> 
+    <rosparam file="$(find receptionist_navigation)/config/turtlebot/costmap_common_params.yaml" command="load" ns="global_costmap" />
+    <rosparam file="$(find receptionist_navigation)/config/turtlebot/costmap_common_params.yaml" command="load" ns="local_costmap" />
+    <rosparam file="$(find receptionist_navigation)/config/turtlebot/local_costmap_params.yaml" command="load" />
+    <rosparam file="$(find receptionist_navigation)/config/turtlebot/global_costmap_params.yaml" command="load" />
+    <rosparam file="$(find receptionist_navigation)/config/turtlebot/base_local_planner_params.yaml" command="load" />
+    <rosparam file="$(find receptionist_navigation)/config/nav_test_params.yaml" command="load" />
+  </node>
+
+    
+
+  <!-- 开启AMCL辅助定位节点 -->
+  <include file="$(find receptionist_navigation)/launch/tb_amcl.launch" />
+ 
+  <include file="$(find turtlebot_rviz_launchers)/launch/view_navigation.launch" />
+
+ 
+  <!-- 开启导航测试 -->
+  <node pkg="receptionist_navigation" type="receptionist_nav.py" name="receptionist_nav_core" output="screen">
+    <param name="rest_time" value="10" />
+    <param name="fake_test" value="false" />
+  </node>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+</launch>

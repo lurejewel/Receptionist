@@ -1,0 +1,177 @@
+#! /usr/bin/env python
+
+# -*- coding: utf-8 -*-
+import roslib
+
+'''
+
+roslib.load_manifest ('speech')
+
+roslib.load_manifest () reads the package manifest and sets up the python library path based on the package dependencies.
+
+It's required for older rosbuild-based packages, but is no longer needed on catki
+
+'''
+
+import rospy
+from std_msgs.msg import String
+from std_msgs.msg import Bool
+import os
+import sys
+import nltk
+import time
+import wave
+import datetime
+import pyaudio
+from sound_play.libsoundplay import SoundClient
+import random
+from control.msg import reception
+
+class speech_transform(object):
+
+
+    def __init__(self):
+
+        self.drink = ['coke']
+        self.name = ['john']
+        self.age = ['100'] 
+        self.nowmission = 0
+        self.nowtask = 1
+        # 0---ask for name and drink
+        # 1---ask for check
+        # 2---ask for name and drink again
+        print("will launch terminal")
+        os.system("gnome-terminal -x bash -c 'rosrun xfei_asr speech_recognition'")
+        self.sh = SoundClient(blocking = True)
+        self.voice = rospy.get_param("~voice", "voice_kal_diphone")
+        self.finish = rospy.Publisher('/speech/candidate_ready', Bool) #1 for done
+        self.finish_task = rospy.Publisher('/control', reception)
+        print "Launching subscriber"
+        rospy.Subscriber("/arm/finish_pointing", Bool, self.arm_Callback)
+        rospy.Subscriber("/control", reception, self.receptionist_Callback)	
+        rospy.Subscriber("/image/found_john", Bool, self.foundCallback)
+        rospy.Subscriber("/xunfei_to_control", String, self.xfeiCallback)
+
+
+    def foundCallback(self, msg):
+
+        self.sh.say('Please stand by my right side', self.voice)
+
+        finish_signal = Bool()
+        finish_signal.data = True
+        self.finish.publish(finish_signal)
+
+
+    def arm_Callback(self, msg):
+
+        task_msg = reception()
+
+        if self.nowtask == 7: # Introducing
+            if len(self.name) == 1:
+                introduce_content = 'Hi, John! This is {}, {} likes to drink {}.'.format(self.name[-1], self.name[-1], self.drink[-1])
+                intro_to_guest_content ='{}, This is John, John likes to drink {}.'.format(self.name[-1], self.drink[0])
+            else:
+                if len(self.name) == 2:
+                    introduce_content = 'Hi, John and {}! This is {}, {} likes to drink {}.'.format(self.name[0], self.name[-1], self.name[-1], self.drink[-1])
+                    intro_to_guest_content ='{}, This is John and {}, John likes to drink {} and {} likes to drink {}.'.format(self.name[-1], self.name[1],  self.drink[0], self.name[1], self.drink[1])
+            self.sh.say(introduce_content, self.voice)
+            self.sh.say(intro_to_guest_content, self.voice)
+
+            task_msg.NowTask = self.nowtask
+            task_msg.NextTask = task_msg.Serving
+            task_msg.FinishState = True
+            task_msg.NeedHelp = False
+
+        elif self.nowtask == 8: # Serving
+            self.sh.say('Dear guest, you can sit here', self.voice)
+
+            task_msg.NowTask = self.nowtask
+            task_msg.NextTask = task_msg.Backward
+            task_msg.FinishState = True
+            task_msg.NeedHelp = False
+        else:
+            self.sh.say('there is no task that matches', self.voice)
+
+        self.finish_task.publish(task_msg)
+
+
+    def receptionist_Callback(self,msg):
+
+        self.nowtask = msg.NowTask
+
+        if msg.NowTask == msg.Requesting and msg.FinishState == False:
+            self.name.append("anonymous")
+            self.drink.append("water")
+            self.age.append("100")
+            self.sh.say('Please tell me your name and what would you like to drink, sir? If you are ready to response, please say jack to launch me first', self.voice)
+            self.sh.nowmission = 0
+
+        if msg.NowTask == msg.CannotOpen and msg.FinishState == False:
+            self.sh.say('Please help me open the door', self.voice)
+
+            task_msg = reception()
+            task_msg.NowTask = task_msg.CannotOpen
+            task_msg.NextTask = task_msg.GuestRecognition
+            task_msg.FinishState = True
+            task_msg.NeedHelp = False
+            self.finish_task.publish(task_msg)
+
+    def xfeiCallback(self,msg):
+
+        if msg.data.strip()=='':
+            self.sh.say("Sorry I did not hear what you just said clearly, please tell me again", self.voice)
+            # self.sh.say("please tell me again", self.voice)
+
+        else:
+
+            if self.nowmission == 0:
+                ans = str(msg.data)
+                tokens = nltk.word_tokenize(ans)
+                tokens = nltk.pos_tag(tokens)
+                for token in tokens:
+                    if token[1] == "NNP":
+                        self.name[-1] = token[0]
+                    if token[1] == "NN":
+                        self.drink[-1] = token[0]
+                self.sh.say('Your name is {} and your favorite drink is {}, right? Please say jack to launch me first, then say yes or no'.format(self.name[-1], self.drink[-1]), self.voice)
+                self.nowmission = 1
+
+            elif self.nowmission == 1:
+                ans = str(msg.data)
+                tokens = nltk.word_tokenize(ans)
+                print(tokens)
+                for i in tokens:
+                    if (i == "no") or (i == "NO") or ( i =="No"):
+                        self.sh.say("can you tell me again, please?", self.voice)
+                        self.nowmission = 0
+                        break  
+                    else:
+                        if (i == "Yes") or (i == "YES") or ( i == "yes")or(i == "yeah")or ( i == "Yeah"):
+                            self.sh.say("can you tell me your age, please? If you are ready to response, please say jack to launch me first", self.voice)
+                            self.nowmission = 2
+                            break
+
+            elif self.nowmission == 2:
+                ans = str(msg.data)
+                tokens = nltk.word_tokenize(ans)
+                tokens = nltk.pos_tag(tokens)
+                for token in tokens:
+                    if token[1] == "CD":
+                        self.age[-1] = token[0]
+                        break
+                # self.nowmission = 0
+                self.sh.say("ok, your name is {}, your favorite drink is {}, and you are {}. And now please follow me to the living room.".format(self.name[-1], self.drink[-1], self.age[-1]), self.voice)
+                
+                task_msg = reception()
+                task_msg.NowTask = task_msg.Requesting
+                task_msg.NextTask = task_msg.Leading
+                task_msg.FinishState = True
+                task_msg.NeedHelp = False
+                self.finish_task.publish(task_msg)
+
+
+if __name__ == '__main__':
+    rospy.init_node("receptionist_test", anonymous=True)
+    rospy.loginfo('receptionist_test.py is running...')
+    trans = speech_transform()
+    rospy.spin()

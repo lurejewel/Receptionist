@@ -1,0 +1,7 @@
+为了避免干扰，提高成功率，每一次人要与机器人交流，需要先说“Jack”来唤醒，机器人听到Jack后，会有ding-dong的提示音，然后人就可以再接下来的10秒内说出要说的话。因此，不管什么对话，每轮都要持续10秒钟。
+
+若要运行：
+	把my_service, xfei_asr, speech中的.launch文件中的地址的username换成自己的。
+	xfei包下的speech_recognition.cpp中的地址同样也要改。
+	xfei包下的Cmakelist也要改地址。
+	把en-us文件放在/usr/local/share/pocketsphinx/model/en-us下，如果没有这个路径，就自己创建这个路径，注意，en-us包要放在.../model/en-us这个文件夹内

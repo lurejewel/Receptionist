@@ -1,0 +1,10 @@
+<launch>
+
+    <!--Using API to check wave-->
+    <node pkg="receptionist_image_core" name="reception_image" type="manage.py" required="true" output="screen">
+        <remap from="/usb_cam/image_raw"                   to="/camera/rgb/image_raw"/>
+        <remap from="/image/roi"                           to="/image/roi"/>
+        <remap from="/image/found_seat"                    to="/image/found_seat"/>
+    </node>
+    <node pkg="receptionist_image_core" name="turn_robot" type="turn_robot_r.py"/>
+</launch>
